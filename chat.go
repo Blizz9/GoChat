@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -19,10 +21,6 @@ type wsMessage struct {
 }
 
 type wsMessageContent struct {
-	Message string
-}
-
-type dbItem struct {
 	Username  string
 	Timestamp int64
 	Message   string
@@ -41,35 +39,6 @@ func main() {
 	for _, table := range result.TableNames {
 		fmt.Println(*table)
 	}
-
-	// params := &dynamodb.BatchWriteItemInput{
-	// 	RequestItems: map[string][]*dynamodb.WriteRequest{
-	// 		"GoChat": {
-	// 			&dynamodb.WriteRequest{
-	// 				PutRequest: &dynamodb.PutRequest{
-	// 					Item: map[string]*dynamodb.AttributeValue{
-	// 						"Username": {
-	// 							S: aws.String("Nick"),
-	// 						},
-	// 						"Timestamp": {
-	// 							N: aws.String(strconv.FormatInt(time.Now().UTC().Unix(), 10)),
-	// 						},
-	// 						"Message": {
-	// 							S: aws.String("Hello Again!"),
-	// 						},
-	// 					},
-	// 				},
-	// 			},
-	// 		},
-	// 	},
-	// }
-
-	// writeResult, err := svc.BatchWriteItem(params)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	return
-	// }
-	// fmt.Println(writeResult.GoString())
 
 	// tableName := "GoChat"
 
@@ -114,7 +83,7 @@ func main() {
 		return
 	}
 
-	items := []dbItem{}
+	items := []wsMessageContent{}
 
 	err = dynamodbattribute.UnmarshalListOfMaps(response.Items, &items)
 	if err != nil {
@@ -138,17 +107,41 @@ func main() {
 func chatHandler(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadFile("chat.html")
 	if err != nil {
-		fmt.Println("Could not open chat.html file.", err)
+		http.Error(w, "Could not open chat.html file.", http.StatusInternalServerError)
+		return
 	}
 	fmt.Fprintf(w, "%s", body)
 }
 
 func chatLogHandler(w http.ResponseWriter, r *http.Request) {
-	// body, err := ioutil.ReadFile("chat.html")
-	// if err != nil {
-	// 	fmt.Println("Could not open chat.html file.", err)
-	// }
-	// fmt.Fprintf(w, "%s", body)
+	svc := dynamodb.New(session.New(&aws.Config{Region: aws.String("us-east-1")}))
+
+	scanInput := &dynamodb.ScanInput{
+		TableName: aws.String("GoChat"),
+		Limit:     aws.Int64(3),
+	}
+
+	scan, err := svc.Scan(scanInput)
+	if err != nil {
+		http.Error(w, "Unable to scan database.", http.StatusInternalServerError)
+		return
+	}
+
+	messages := []wsMessageContent{}
+	err = dynamodbattribute.UnmarshalListOfMaps(scan.Items, &messages)
+	if err != nil {
+		http.Error(w, "Unable to parse database items.", http.StatusInternalServerError)
+		return
+	}
+
+	json, err := json.Marshal(messages)
+	if err != nil {
+		http.Error(w, "Unable to format JSON response.", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(json)
 }
 
 func wsHandler(w http.ResponseWriter, r *http.Request) {
@@ -160,6 +153,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := websocket.Upgrade(w, r, w.Header(), 1024, 1024)
 	if err != nil {
 		http.Error(w, "Failed opening the websocket connection.", http.StatusInternalServerError)
+		return
 	}
 
 	go wsMessageHandler(conn)
@@ -167,17 +161,42 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 
 func wsMessageHandler(conn *websocket.Conn) {
 	for {
-		msg := wsMessage{}
+		message := wsMessage{}
 
-		err := conn.ReadJSON(&msg)
+		err := conn.ReadJSON(&message)
 		if err != nil {
 			fmt.Println("Error parsing websocket message.", err)
 		}
 
-		fmt.Printf("Recieved websocket message: %#v\n", msg.Content.Message)
+		fmt.Printf("Recieved websocket message: %#v\n", message.Content.Timestamp)
 
-		if err = conn.WriteJSON(msg); err != nil {
-			fmt.Println(err)
+		svc := dynamodb.New(session.New(&aws.Config{Region: aws.String("us-east-1")}))
+
+		writeInput := &dynamodb.BatchWriteItemInput{
+			RequestItems: map[string][]*dynamodb.WriteRequest{
+				"GoChat": {
+					&dynamodb.WriteRequest{
+						PutRequest: &dynamodb.PutRequest{
+							Item: map[string]*dynamodb.AttributeValue{
+								"Username": {
+									S: aws.String(message.Content.Username),
+								},
+								"Timestamp": {
+									N: aws.String(strconv.FormatInt(message.Content.Timestamp, 10)),
+								},
+								"Message": {
+									S: aws.String(message.Content.Message),
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		_, err = svc.BatchWriteItem(writeInput)
+		if err != nil {
+			fmt.Println("Unable to properly write to database.", err)
 		}
 	}
 }

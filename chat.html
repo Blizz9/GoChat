@@ -41,7 +41,7 @@
                 return socket;
             }
             $("#sendButton").click(function (e) {
-                ws.send(JSON.stringify({ Type: "unsure", Content: { Message: $("#textField").val() } }));
+                ws.send(JSON.stringify({ Type: "unsure", Content: { Username: "Nick", Timestamp: 1500487514, Message: $("#textField").val() } }));
             });
         });
     </script>
