@@ -1,0 +1,50 @@
+<html>
+<head>
+    <title>Golang and Websockets Chat</title>
+    <h1>Golang and Websockets Chat</h1>
+</head>
+<body>
+
+    <div>
+        <form>
+            <label for="textField">Text</label>
+            <input type="text" id="textField" />
+            <br />
+            <button type="button" id="sendButton">Send</button>
+        </form>
+    </div>
+    <div id="log"></div>
+
+    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+
+    <script type="text/javascript">
+        $(function () {
+            var ws;
+            if (window.WebSocket === undefined) {
+                $("#container").append("Your browser does not support WebSockets");
+                return;
+            } else {
+                ws = initWS();
+            }
+            function initWS() {
+                var socket = new WebSocket("ws://" + location.host + "/chat/ws"),
+                    log = $("#log")
+                socket.onopen = function() {
+                    log.append("<p>Socket is open</p>");
+                };
+                socket.onmessage = function (e) {
+                    log.append("<p> Got some data:" + e.data + "</p>");
+                }
+                socket.onclose = function () {
+                    log.append("<p>Socket closed</p>");
+                }
+                return socket;
+            }
+            $("#sendButton").click(function (e) {
+                ws.send(JSON.stringify({ Type: "unsure", Content: { Message: $("#textField").val() } }));
+            });
+        });
+    </script>
+
+</body>
+</html>
