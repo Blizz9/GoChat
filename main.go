@@ -75,7 +75,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	connections = append(connections, conn)
-	fmt.Println(len(connections))
+	fmt.Println("New websocket connection opened to client at " + conn.RemoteAddr().String())
 
 	go wsMessageHandler(conn)
 }
@@ -116,7 +116,7 @@ func removeConnection(connToRemove *websocket.Conn) {
 	for i, conn := range connections {
 		if connToRemove == conn {
 			connections = append(connections[:i], connections[i+1:]...)
-			fmt.Println(len(connections))
+			fmt.Println("Websocket connection closed to client at " + connToRemove.RemoteAddr().String())
 			break
 		}
 	}

@@ -1,50 +1,88 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-    <title>Golang and Websockets Chat</title>
-    <h1>Golang and Websockets Chat</h1>
-</head>
-<body>
 
-    <div>
-        <form>
-            <label for="textField">Text</label>
-            <input type="text" id="textField" />
-            <br />
-            <button type="button" id="sendButton">Send</button>
-        </form>
-    </div>
-    <div id="log"></div>
+    <title>Golang and Websockets Chat</title>
 
     <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
 
     <script type="text/javascript">
         $(function () {
-            var ws;
+            chat = $("#chat")
+
             if (window.WebSocket === undefined) {
-                $("#container").append("Your browser does not support WebSockets");
+                chat.append("WebSockets are not supported in this browser");
                 return;
-            } else {
-                ws = initWS();
             }
-            function initWS() {
-                var socket = new WebSocket("ws://" + location.host + "/chat/ws"),
-                    log = $("#log")
-                socket.onopen = function() {
-                    log.append("<p>Socket is open</p>");
-                };
-                socket.onmessage = function (e) {
-                    log.append("<p> Got some data:" + e.data + "</p>");
-                }
-                socket.onclose = function () {
-                    log.append("<p>Socket closed</p>");
-                }
-                return socket;
+
+            webSocket = new WebSocket("ws://" + location.host + "/chat/ws")
+            
+            webSocket.onopen = function() {
+                chat.append("WebSocket Opened\n");
+            };
+            
+            webSocket.onmessage = function (e) {
+                chat.append("Received Data: " + e.data);
             }
-            $("#sendButton").click(function (e) {
-                ws.send(JSON.stringify({ Type: "unsure", Content: { Username: "Nick", Timestamp: 1500487514, Message: $("#textField").val() } }));
+
+            webSocket.onclose = function () {
+                chat.append("WebSocket Closed\n");
+            }
+
+            $("#messageInput").submit(function () {
+                webSocket.send(JSON.stringify({ Type: "unsure", Content: { Username: "Nick", Timestamp: 1500487514, Message: $("#message").val() } }));
+                return false;
             });
         });
     </script>
 
+    <style type="text/css">
+        html {
+            overflow: hidden;
+        }
+
+        body {
+            background: gray;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            padding: 0;
+            width: 100%;
+        }
+
+        #chat {
+            background: white;
+            margin: 0;
+            top: 0.5em;
+            left: 0.5em;
+            right: 0.5em;
+            bottom: 3em;
+            padding: 0.5em 0.5em 0.5em 0.5em;
+            position: absolute;
+            overflow: auto;
+            white-space: pre;
+        }
+
+        #messageInput {
+            bottom: 1em;
+            left: 0px;
+            margin: 0;
+            overflow: hidden;
+            padding: 0 0.5em 0 0.5em;
+            position: absolute;
+            width: 100%;
+        }
+    </style>
+
+</head>
+
+ <body>
+    <div id="chat"></div>
+
+    <form id="messageInput">
+        <input type="text" id="message" size="50" />
+        <input type="submit" Value="Send" />
+    </form>
 </body>
-</html>
+
+</html> 
