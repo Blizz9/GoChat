@@ -12,9 +12,8 @@ import (
 )
 
 const (
-	port         = 8080
-	bufferSize   = 1024
-	chatLogCount = 100
+	port       = 8080
+	bufferSize = 1024
 )
 
 type wsMessage struct {
@@ -50,7 +49,7 @@ func chatHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func chatLogHandler(w http.ResponseWriter, r *http.Request) {
-	messages := retreiveMessages(chatLogCount)
+	messages := retreiveMessages()
 
 	json, err := json.Marshal(messages)
 	if err != nil {

@@ -44,12 +44,11 @@ func storeMessage(message wsMessageContent) {
 	}
 }
 
-func retreiveMessages(count int) []wsMessageContent {
+func retreiveMessages() []wsMessageContent {
 	svc := dynamodb.New(session.New(&aws.Config{Region: aws.String(availabilityZoneName)}))
 
 	scanInput := &dynamodb.ScanInput{
 		TableName: aws.String("GoChat"),
-		Limit:     aws.Int64(int64(count)),
 	}
 
 	scan, err := svc.Scan(scanInput)
