@@ -17,16 +17,12 @@ const (
 )
 
 type wsMessage struct {
-	Type    string
-	Content wsMessageContent
-}
-
-type wsMessageContent struct {
 	Username  string
 	Timestamp int64
 	Message   string
 }
 
+// all of the live client connections will be stored here
 var connections []*websocket.Conn
 
 func main() {
@@ -39,6 +35,7 @@ func main() {
 	panic(http.ListenAndServe(":"+strconv.Itoa(port), nil))
 }
 
+// starting point for clients, serves up the chat.html page
 func chatHandler(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadFile("chat.html")
 	if err != nil {
@@ -48,6 +45,7 @@ func chatHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s", body)
 }
 
+// used by the client to receive the past chat messages, pulled from datastore
 func chatLogHandler(w http.ResponseWriter, r *http.Request) {
 	messages := retreiveMessages()
 
@@ -61,6 +59,7 @@ func chatLogHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(json)
 }
 
+// web socket endpoint, upgrades the connection to a web socket connection
 func wsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Origin") != "http://"+r.Host {
 		http.Error(w, "The request must originate from the host.", http.StatusBadRequest)
@@ -79,6 +78,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	go wsMessageHandler(conn)
 }
 
+// each web socket message from the client is handled here
 func wsMessageHandler(conn *websocket.Conn) {
 	for {
 		message := wsMessage{}
@@ -100,8 +100,9 @@ func wsMessageHandler(conn *websocket.Conn) {
 		} else {
 			fmt.Printf("Recieved websocket message: %#v\n", message)
 
-			storeMessage(message.Content)
+			storeMessage(message)
 
+			// broadcast the message to the other clients
 			for _, otherConn := range connections {
 				if conn != otherConn {
 					otherConn.WriteJSON(message)

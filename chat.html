@@ -4,7 +4,7 @@
 
     <title>Golang and Websockets Chat</title>
 
-    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 
     <script type="text/javascript">
         $(function () {
@@ -23,20 +23,14 @@
                 $("#status").css('color', 'darkred');
             }
             webSocket.onmessage = function (e) {
-                message = JSON.parse(e.data);
-                $("#chat").append("<b>" + message.Content.Username + "</b>: " + message.Content.Message + "\n");
-                $('#chat').scrollTop($('#chat')[0].scrollHeight);
+                appendMessage(JSON.parse(e.data));
             }
 
             $("#messageInput").submit(function () {
-                username = $("#username").val();
-                timestamp = (new Date()).getTime();
-                message = $("#message").val();
+                message = { Username: $("#username").val(), Timestamp: (new Date()).getTime(), Message: $("#message").val() };
 
-                $("#chat").append("<b>" + username + "</b>: " + message + "\n");
-                $('#chat').scrollTop($('#chat')[0].scrollHeight);
-
-                webSocket.send(JSON.stringify({ Type: "unsure", Content: { Username: username, Timestamp: timestamp, Message: message } }));
+                appendMessage(message);
+                webSocket.send(JSON.stringify(message));
 
                 $("#message").val('');
 
@@ -45,19 +39,27 @@
 
             $("#username").val('ChatUser');
 
+            retrieveLog();
+
+            $("#message").focus();
+        });
+
+        function retrieveLog() {
             $.getJSON("http://" + location.host + "/chat/log", function (data) {
                 data.sort(function(a, b) {
                     return a.Timestamp > b.Timestamp;
                 });
 
                 $.each(data, function(key, value) {
-                    $("#chat").append("<b>" + value.Username + "</b>: " + value.Message + "\n");
-                    $('#chat').scrollTop($('#chat')[0].scrollHeight);
+                    appendMessage(value);
                 });
             });
+        }
 
-            $("#message").focus();
-        });
+        function appendMessage(message) {
+            $("#chat").append("<b>" + message.Username + "</b>: " + message.Message + "\n");
+            $('#chat').scrollTop($('#chat')[0].scrollHeight);
+        }
     </script>
 
     <style type="text/css">
@@ -116,9 +118,7 @@
     <div id="usernameInput">
         Username:
         <input type="text" id="username" size="16" />
-        &nbsp;
-        Socket Status:
-        &nbsp;
+        &nbsp;Socket Status:&nbsp;
         <span id="status" style="color:darkred">Disconnected</span>
     </div>
 

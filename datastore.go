@@ -12,7 +12,10 @@ import (
 
 const availabilityZoneName = "us-east-1"
 
-func storeMessage(message wsMessageContent) {
+// NOTE: the standard AWS credentials file at ~/.aws/credentials is required for this to work
+//       also a table with the proper schema is required in DynamoDB (is not created for this exercise)
+
+func storeMessage(message wsMessage) {
 	svc := dynamodb.New(session.New(&aws.Config{Region: aws.String(availabilityZoneName)}))
 
 	writeInput := &dynamodb.BatchWriteItemInput{
@@ -44,7 +47,7 @@ func storeMessage(message wsMessageContent) {
 	}
 }
 
-func retreiveMessages() []wsMessageContent {
+func retreiveMessages() []wsMessage {
 	svc := dynamodb.New(session.New(&aws.Config{Region: aws.String(availabilityZoneName)}))
 
 	scanInput := &dynamodb.ScanInput{
@@ -57,7 +60,7 @@ func retreiveMessages() []wsMessageContent {
 		return nil
 	}
 
-	messages := []wsMessageContent{}
+	messages := []wsMessage{} // notice db schema matches messages format, convention over configuration
 	err = dynamodbattribute.UnmarshalListOfMaps(scan.Items, &messages)
 	if err != nil {
 		fmt.Println("Unable to parse database items.", err)
