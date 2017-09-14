@@ -4,7 +4,7 @@
 
     <title>Golang and Websockets Chat</title>
 
-    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 
     <script type="text/javascript">
         $(function () {
@@ -13,7 +13,7 @@
                 return;
             }
 
-            webSocket = new WebSocket("ws://" + location.host + "/chat/ws")
+            webSocket = new WebSocket("wss://" + location.host + "/chat/ws")
             webSocket.onopen = function() {
                 $("#status").text('Connected');
                 $("#status").css('color', 'green');
@@ -45,7 +45,7 @@
         });
 
         function retrieveLog() {
-            $.getJSON("http://" + location.host + "/chat/log", function (data) {
+            $.getJSON("https://" + location.host + "/chat/log", function (data) {
                 data.sort(function(a, b) {
                     return a.Timestamp > b.Timestamp;
                 });

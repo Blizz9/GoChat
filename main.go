@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 
 	"strconv"
@@ -12,7 +13,8 @@ import (
 )
 
 const (
-	port       = 8080
+	port       = 80
+	securePort = 443
 	bufferSize = 1024
 )
 
@@ -28,11 +30,23 @@ var connections []*websocket.Conn
 func main() {
 	connections = []*websocket.Conn{}
 
-	http.HandleFunc("/chat", chatHandler)
-	http.HandleFunc("/chat/log", chatLogHandler)
-	http.HandleFunc("/chat/ws", wsHandler)
+	//http.HandleFunc("/chat", chatHandler)
+	//http.HandleFunc("/chat/log", chatLogHandler)
+	//http.HandleFunc("/chat/ws", wsHandler)
 
-	panic(http.ListenAndServe(":"+strconv.Itoa(port), nil))
+	go http.ListenAndServe(":"+strconv.Itoa(port), http.HandlerFunc(redirect))
+
+	serveMux := http.NewServeMux()
+	serveMux.HandleFunc("/", index)
+	serveMux.HandleFunc("/chat", chatHandler)
+	serveMux.HandleFunc("/chat/log", chatLogHandler)
+	serveMux.HandleFunc("/chat/ws", wsHandler)
+	http.ListenAndServeTLS(":"+strconv.Itoa(securePort), "cert.pem", "key.pem", serveMux)
+
+	//go http.ListenAndServe(":80", http.HandlerFunc(redirect))
+	//panic(http.ListenAndServe(":"+strconv.Itoa(port), nil))
+
+	//panic(http.ListenAndServe(":"+strconv.Itoa(port), http.HandlerFunc(redirect)))
 }
 
 // starting point for clients, serves up the chat.html page
@@ -61,7 +75,7 @@ func chatLogHandler(w http.ResponseWriter, r *http.Request) {
 
 // web socket endpoint, upgrades the connection to a web socket connection
 func wsHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get("Origin") != "http://"+r.Host {
+	if r.Header.Get("Origin") != "https://"+r.Host {
 		http.Error(w, "The request must originate from the host.", http.StatusBadRequest)
 		return
 	}
@@ -120,4 +134,22 @@ func removeConnection(connToRemove *websocket.Conn) {
 			break
 		}
 	}
+}
+
+func redirect(w http.ResponseWriter, r *http.Request) {
+	target := "https://" + r.Host + r.URL.Path
+	if len(r.URL.RawQuery) > 0 {
+		target += "?" + r.URL.RawQuery
+	}
+	log.Printf("redirect to: %s", target)
+	http.Redirect(w, r, target, http.StatusTemporaryRedirect)
+}
+
+func index(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		log.Printf("404: %s", r.URL.String())
+		http.NotFound(w, r)
+		return
+	}
+	http.ServeFile(w, r, "chat.html")
 }
